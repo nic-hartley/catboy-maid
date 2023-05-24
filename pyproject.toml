@@ -1,0 +1,27 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "catboy-maid"
+authors = [
+    { name = "Nic Hartley", email = "the@redfennec.dev" },
+]
+version = "0.0.1"
+description = "Adorably taking out the trash, nya~"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Web Environment",
+]
+dependencies = [
+    "discord.py",
+    "click",
+    "SQLAlchemy",
+]
+
+[project.urls]
+Repo = "https://github.com/nic-hartley/catboy-maid"
+
+[project.scripts]
+catboy-maid = "catboy_maid:main"
