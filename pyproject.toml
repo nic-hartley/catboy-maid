@@ -17,11 +17,11 @@ classifiers = [
 dependencies = [
     "discord.py",
     "click",
-    "SQLAlchemy",
+    "SQLAlchemy[asyncio]",
 ]
 
 [project.urls]
 Repo = "https://github.com/nic-hartley/catboy-maid"
 
 [project.scripts]
-catboy-maid = "catboy_maid:main"
+catboy-maid = "catboy_maid.cli:main"

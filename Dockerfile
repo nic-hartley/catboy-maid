@@ -1,4 +1,4 @@
-FROM python:3 AS build
+FROM python:latest AS build
 RUN mkdir source/
 COPY . ./source
 RUN pip wheel ./source
