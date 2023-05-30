@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from dataclasses import dataclass
 from pathlib import Path
 import signal
@@ -14,33 +15,51 @@ class Context:
     Various bits and bobs that we pass around to everything to have one
     convenient reference.
     """
-    # discord: cxn.discord.DiscordClient
-    # twitch: cxn.twitch.TwitchClient
-    group: asyncio.TaskGroup
-    engine: AsyncEngine
+
+    def __init__(self, config, discord_token, twitch_token):
+        self.es = contextlib.AsyncExitStack()
+        self.tasks = asyncio.TaskGroup()
+
+        engine = create_async_engine(f"sqlite://{config}", echo=True)
+        async with engine.begin() as tx:
+            await tx.run_sync(db.base.SQLBase.metadata.create_all)
+
+        self.engine = engine
+
+        self.discord = cxn.discord_client.DiscordClient(ctx, discord_token)
+        # TODO: Twitch
+
+    def start(self):
+        self.tasks.create_task(self.discord.spawn())
+        # TODO: Twitch
 
     def close(self):
-        # TODO: if self.discord: self.discord.close()
-        # TODO: if self.twitch: self.twitch.close()
-        pass
+        self.tasks.create_task(self.discord.close())
+        # TODO: Twitch
+
+    async def __aenter__(self):
+        self.discord = self.es.enter_async_context(self.discord)
+        # TODO: Twitch
+        # Must enter the `tasks` async context *last*, so it's cleaned up
+        # *first*, so connections &c stop before cleaning up clients
+        self.tasks = self.es.enter_async_context(self.tasks)
+
+    async def __aexit__(self, *args):
+        await self.es.__aexit__(*args)
 
 
-async def run(config, discord_token, twitch_token):
-    engine = create_async_engine(f"sqlite://{config}", echo=True)
-    async with engine.begin() as tx:
-        await tx.run_sync(db.base.SQLBase.metadata.create_all)
-    async with asyncio.TaskGroup() as tg:
-        ctx = Context(None, None, tg, engine)
-        asyncio.get_event_loop().add_signal_handler(signal.SIGINT, ctx.close)
+async def run(**ctx_args):
+    # TODO: Proper logging
+    async with Context(**ctx_args) as ctx:
+        # set up signal handlers for clean shutdown
+        for sig in [signal.SIGINT]:
+            asyncio.get_event_loop().add_signal_handler(sig, ctx.close)
 
-        # TODO: ctx.discord = cxn.discord.DiscordClient(ctx)
-        # TODO: ctx.twitch = cxn.twitch.TwitchClient(ctx)
+        ctx.start()
 
-        # task group __exit__ will automatically wait until things are done,
-        # most notably the runner tasks that the clients add to the TaskGroup
-        # (i.e. until Ctrl+C calls ctx.close)
-    # TODO: await ctx.discord.close()
-    # TODO: await ctx.twitch.close()
+        # on __aexit__, Context waits for all the tasks to be completed, which
+        # won't happen until `ctx.close` is called (i.e. by a signal handler)
+        # so we very efficiently sit here doing nothing until then
 
 
 @click.command(context_settings={'help_option_names': ['--help', '-h']})
@@ -61,10 +80,10 @@ async def run(config, discord_token, twitch_token):
     help='Twitch API token for the bot account',
     prompt='Twitch API token',
 )
-def main(config, discord_token, twitch_token):
+def main(**ctx_args):
     """
     Start a Catboy Maid software instance, which can host several Catboy Maids
     for several communities.
     """
-    asyncio.run(run(config, discord_token, twitch_token))
+    asyncio.run(run(**ctx_args))
 
