@@ -39,5 +39,5 @@ class DiscordServer(Discord, SQLBase):
     Discord servers.
     """
     # community: Mapped[Community] = relationship(back_populates="discords")
-    c2_channel: Mapped[int]
-    messages: Mapped[list[DiscordMessage]] = relationship(back_populates="server")
+    c2_channel: Mapped[int | None]
+    messages: Mapped[list[DiscordMessage]] = relationship()
