@@ -5,7 +5,7 @@ from pathlib import Path
 import signal
 
 import click
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlalchemy import create_engine, Engine
 
 from . import cxn, db, pipeline
 
@@ -16,20 +16,19 @@ class Context:
     convenient reference.
     """
 
-    def __init__(self, config, discord_token, twitch_token):
+    def __init__(self, config, discord_token):
         self.es = contextlib.AsyncExitStack()
         self.tasks = asyncio.TaskGroup()
 
-        engine = create_async_engine(f"sqlite://{config}", echo=True)
-        async with engine.begin() as tx:
-            await tx.run_sync(db.base.SQLBase.metadata.create_all)
-
+        engine = create_engine(f"sqlite:///{config}", echo=True)
         self.engine = engine
 
-        self.discord = cxn.discord_client.DiscordClient(ctx, discord_token)
+        self.discord = cxn.discord_client.DiscordClient(self, discord_token)
         # TODO: Twitch
 
-    def start(self):
+    async def start(self):
+        with self.engine.begin() as tx:
+            db.base.SQLBase.metadata.create_all(tx, checkfirst=True)
         self.tasks.create_task(self.discord.spawn())
         # TODO: Twitch
 
@@ -38,11 +37,8 @@ class Context:
         # TODO: Twitch
 
     async def __aenter__(self):
-        self.discord = self.es.enter_async_context(self.discord)
-        # TODO: Twitch
-        # Must enter the `tasks` async context *last*, so it's cleaned up
-        # *first*, so connections &c stop before cleaning up clients
-        self.tasks = self.es.enter_async_context(self.tasks)
+        self.tasks = await self.es.enter_async_context(self.tasks)
+        return self
 
     async def __aexit__(self, *args):
         await self.es.__aexit__(*args)
@@ -55,7 +51,7 @@ async def run(**ctx_args):
         for sig in [signal.SIGINT]:
             asyncio.get_event_loop().add_signal_handler(sig, ctx.close)
 
-        ctx.start()
+        await ctx.start()
 
         # on __aexit__, Context waits for all the tasks to be completed, which
         # won't happen until `ctx.close` is called (i.e. by a signal handler)
@@ -74,11 +70,6 @@ async def run(**ctx_args):
     '-d', '--discord-token',
     help='Discord API token for the bot account',
     prompt='Discord API token',
-)
-@click.option(
-    '-t', '--twitch-token',
-    help='Twitch API token for the bot account',
-    prompt='Twitch API token',
 )
 def main(**ctx_args):
     """

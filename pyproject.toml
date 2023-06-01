@@ -15,7 +15,7 @@ classifiers = [
     "Environment :: Web Environment",
 ]
 dependencies = [
-    "discord.py",
+    "py-cord",
     "click",
     "SQLAlchemy[asyncio]",
 ]
