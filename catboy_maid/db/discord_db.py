@@ -6,6 +6,7 @@ platforms.
 """
 
 from __future__ import annotations
+from datetime import datetime
 
 from sqlalchemy import *
 from sqlalchemy.orm import *
@@ -16,7 +17,7 @@ class Discord:
     """
     Something with a Discord ID (sometimes called a snowflake)
     """
-    discord_id: Mapped[int | None]
+    discord_id: Mapped[int | None] = mapped_column(unique=True)
 
 
 class DiscordMessage(Discord, SQLBase):
@@ -25,8 +26,11 @@ class DiscordMessage(Discord, SQLBase):
     """
     # author: Mapped[User]
     text: Mapped[str]
-    server: Mapped[int] = mapped_column(ForeignKey("DiscordServer.id"))
+    server: Mapped[DiscordServer] = relationship(back_populates="messages")
+    server_id: Mapped[int] = mapped_column(ForeignKey("DiscordServer.id"))
     channel: Mapped[int]
+    posted_at: Mapped[datetime]
+    deleted_at: Mapped[datetime | None]
 
 
 class DiscordServer(Discord, SQLBase):
@@ -40,4 +44,4 @@ class DiscordServer(Discord, SQLBase):
     """
     # community: Mapped[Community] = relationship(back_populates="discords")
     c2_channel: Mapped[int | None]
-    messages: Mapped[list[DiscordMessage]] = relationship()
+    messages: Mapped[list[DiscordMessage]] = relationship(back_populates="server")

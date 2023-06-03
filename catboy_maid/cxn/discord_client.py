@@ -3,10 +3,8 @@ import inspect
 import random
 
 import discord
-from sqlalchemy.orm import Session
 
-from ..db import discord_db
-
+from ..pipeline import discord_pipe
 
 COMMANDS = []
 def pycord_sanifier(fn: discord.ApplicationCommand):
@@ -32,6 +30,8 @@ class DiscordClient(discord.Bot):
     def __init__(self, ctx, token):
         super().__init__(intents=discord.Intents(
             guilds=True,
+            messages=True,
+            message_content=True,
         ))
         self.__ctx = ctx
         self.__token = token
@@ -70,21 +70,14 @@ class DiscordClient(discord.Bot):
         await ctx.respond(inspect.cleandoc(text), ephemeral=True)
 
     async def on_ready(self):
-        with Session(self.__ctx.engine) as sesh:
-            sesh.add_all(
-                discord_db.DiscordServer(
-                    discord_id=guild.id,
-                    c2_channel=None,
-                )
-                for guild in self.guilds
-            )
-            sesh.commit()
+        for guild in self.guilds:
+            self.__ctx.run(discord_pipe.update_guild, guild)
 
     async def on_guild_join(self, guild: discord.Guild):
-        with self.__ctx.engine.begin() as sesh:
-            sesh.add(discord_db.DiscordServer(
-                discord_id=guild.id,
-                c2_channel=None,
-            ))
-            sesh.commit()
-        self.__ctx.tasks.create_task(coro)
+        self.__ctx.run(discord_pipe.update_guild, guild)
+
+    async def on_message(self, message: discord.Message):
+        self.__ctx.run(discord_pipe.add_message, message)
+
+    async def on_raw_message_delete(self, ev: discord.RawMessageDeleteEvent):
+        self.__ctx.run(discord_pipe.delete_message, ev.message_id)

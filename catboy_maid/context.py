@@ -1,0 +1,44 @@
+import asyncio
+import contextlib
+import typing as t
+
+from sqlalchemy import create_engine, Engine
+
+from . import cxn, db
+
+
+class Context:
+    """
+    Various bits and bobs that we pass around to everything to have one
+    convenient reference.
+    """
+
+    def __init__(self, config, discord_token):
+        self.es = contextlib.AsyncExitStack()
+        self.tasks = asyncio.TaskGroup()
+
+        engine = create_engine(f"sqlite:///{config}", echo=True)
+        self.engine = engine
+
+        self.discord = cxn.discord_client.DiscordClient(self, discord_token)
+        # TODO: Twitch
+
+    async def start(self):
+        with self.engine.begin() as tx:
+            db.base.SQLBase.metadata.create_all(tx, checkfirst=True)
+        self.tasks.create_task(self.discord.spawn())
+        # TODO: Twitch
+
+    def close(self):
+        self.tasks.create_task(self.discord.close())
+        # TODO: Twitch
+
+    async def __aenter__(self):
+        self.tasks = await self.es.enter_async_context(self.tasks)
+        return self
+
+    async def __aexit__(self, *args):
+        await self.es.__aexit__(*args)
+
+    def run(self, fn: t.Callable[[t.Any, ...], t.Awaitable[t.Any]], *args, **kwargs):
+        self.tasks.create_task(fn(self, *args, **kwargs))
