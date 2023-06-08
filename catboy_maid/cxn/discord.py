@@ -4,7 +4,7 @@ import random
 
 import discord
 
-from ..pipeline import discord_pipe
+from .. import pipeline
 
 COMMANDS = []
 def pycord_sanifier(fn: discord.ApplicationCommand):
@@ -70,14 +70,13 @@ class DiscordClient(discord.Bot):
         await ctx.respond(inspect.cleandoc(text), ephemeral=True)
 
     async def on_ready(self):
-        for guild in self.guilds:
-            self.__ctx.run(discord_pipe.update_guild, guild)
+        self.__ctx.run(pipeline.discord.update_all_guilds, self.guilds)
 
     async def on_guild_join(self, guild: discord.Guild):
-        self.__ctx.run(discord_pipe.update_guild, guild)
+        self.__ctx.run(pipeline.discord.update_guild, guild)
 
     async def on_message(self, message: discord.Message):
-        self.__ctx.run(discord_pipe.add_message, message)
+        self.__ctx.run(pipeline.discord.add_message, message)
 
     async def on_raw_message_delete(self, ev: discord.RawMessageDeleteEvent):
-        self.__ctx.run(discord_pipe.delete_message, ev.message_id)
+        self.__ctx.run(pipeline.discord.delete_message, ev.message_id)

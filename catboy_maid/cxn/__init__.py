@@ -6,4 +6,4 @@ Generally, each module will have two halves:
 - Providing normalized API access to propagate actions back to platforms
 """
 
-from . import discord_client
+from . import discord

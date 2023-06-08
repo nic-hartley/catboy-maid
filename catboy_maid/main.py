@@ -23,12 +23,13 @@ async def run(**ctx_args):
 
 @click.command(context_settings={'help_option_names': ['--help', '-h']})
 @click.option(
-    '-c', '--config',
+    '-s', '--storage',
     help='Data storage location',
     type=click.Path(
         readable=True, writable=True, resolve_path=True,
         path_type=Path,
     ),
+    required=True,
 )
 @click.option(
     '-d', '--discord-token',
@@ -47,7 +48,7 @@ def main(clear_db: bool, **ctx_args):
     """
     if clear_db:
         try:
-            ctx_args['config'].unlink()
+            ctx_args['storage'].unlink()
         except FileNotFoundError:
             pass
 

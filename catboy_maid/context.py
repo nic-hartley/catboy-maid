@@ -4,26 +4,29 @@ import typing as t
 
 from sqlalchemy import create_engine, Engine
 
-from . import cxn, db
-
-
 class Context:
     """
     Various bits and bobs that we pass around to everything to have one
     convenient reference.
     """
 
-    def __init__(self, config, discord_token):
+    def __init__(self, storage: str, discord_token: str):
+        # import is here to break the import loop
+        from . import cxn, db
+
         self.es = contextlib.AsyncExitStack()
         self.tasks = asyncio.TaskGroup()
 
-        engine = create_engine(f"sqlite:///{config}", echo=True)
+        engine = create_engine(f"sqlite:///{storage}", echo=True)
         self.engine = engine
 
-        self.discord = cxn.discord_client.DiscordClient(self, discord_token)
+        self.discord = cxn.discord.DiscordClient(self, discord_token)
         # TODO: Twitch
 
     async def start(self):
+        # import is here to break the import loop
+        from . import db
+
         with self.engine.begin() as tx:
             db.base.SQLBase.metadata.create_all(tx, checkfirst=True)
         self.tasks.create_task(self.discord.spawn())
