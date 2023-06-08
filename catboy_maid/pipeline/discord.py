@@ -70,6 +70,8 @@ async def add_message(
     ctx: Context, sesh: Session, msg: Message,
     *, db_guild: Guild | None = None,
 ):
+    if ctx.discord.user.id == msg.author.id:
+        return
     if db_guild is None:
         db_guild = await get_guild(ctx, msg.channel.guild, create=False)
     sesh.add(db.discord.DiscordMessage(

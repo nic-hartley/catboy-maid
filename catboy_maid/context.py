@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+from pathlib import Path
 import typing as t
 
 from sqlalchemy import create_engine, Engine
@@ -10,7 +11,7 @@ class Context:
     convenient reference.
     """
 
-    def __init__(self, storage: str, discord_token: str):
+    def __init__(self, storage: Path, discord_token: str):
         # import is here to break the import loop
         from . import cxn, db
 
