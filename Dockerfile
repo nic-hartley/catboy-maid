@@ -1,10 +1,7 @@
-FROM python:3 AS build
-RUN mkdir source/
-COPY . ./source
-RUN pip wheel ./source
+FROM rust:alpine AS build
 
-FROM python:alpine AS run
-COPY --from=build *.whl .
-RUN pip install catboy_maid-*.whl
+COPY . .
+RUN cargo install --path .
 
-ENTRYPOINT [ "catboy-maid", "-c", "/cm" ]
+ENTRYPOINT ["catboy-maid"]
+CMD ["-c", "/config"]
